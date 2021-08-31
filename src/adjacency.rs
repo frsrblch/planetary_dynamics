@@ -157,11 +157,21 @@ impl Adjacency {
         self.map.clear();
     }
 
-    pub fn get(&mut self, nodes: u16) -> &Vec<AdjArray> {
+    pub fn register(&mut self, nodes: usize) {
+        let nodes = std::convert::TryFrom::try_from(nodes).unwrap();
         let spiral = Spiral { nodes };
+
         self.map
             .entry(spiral)
-            .or_insert_with(|| Self::create_min_edges(spiral))
+            .or_insert_with(|| Self::create_min_edges(spiral));
+    }
+
+    #[track_caller]
+    pub fn get(&self, nodes: usize) -> &Vec<AdjArray> {
+        let nodes = std::convert::TryFrom::try_from(nodes).unwrap();
+        self.map
+            .get(&Spiral { nodes })
+            .unwrap_or_else(|| panic!("unregisted size: {}", nodes))
     }
 
     fn create_min_edges(spiral: Spiral) -> Vec<AdjArray> {

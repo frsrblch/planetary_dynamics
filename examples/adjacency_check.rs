@@ -6,6 +6,7 @@ fn main() {
     let start = std::time::Instant::now();
     (16..1024).into_par_iter().for_each(|count| {
         let mut adjacency = Adjacency::default();
+        adjacency.register(count);
         let adjacency = adjacency.get(count);
         for (node, adj) in adjacency.iter().enumerate() {
             for neighbour in adj {
