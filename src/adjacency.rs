@@ -3,11 +3,7 @@
 use crate::adjacency::adj_array::AdjArray;
 use crate::adjacency::units::*;
 use fxhash::FxHashMap as HashMap;
-use std::collections::BTreeSet;
-
-/// Tiling a sphere with a number of tiles, N, spiraling around the sphere R times
-/// The angle φ is in the range [0..π], and represents the angle relative to the poles
-/// The angle θ is the in range [0..Rτ], and represents the rotation of the spiral
+use std::convert::TryFrom;
 
 mod adj_array {
     use std::fmt::{Display, Formatter};
@@ -18,7 +14,7 @@ mod adj_array {
 
     impl FromIterator<usize> for AdjArray {
         fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
-            // this isn't optimal, but it's fine for my use case
+            // this isn't optimal, but it's only done at startup
             let mut array = <[u16; Self::LEN]>::default();
             let mut len = 0usize;
             let mut iter = iter.into_iter();
@@ -149,7 +145,7 @@ mod adj_array {
 
 #[derive(Debug, Default, Clone)]
 pub struct Adjacency {
-    map: HashMap<Spiral, Vec<AdjArray>>,
+    map: HashMap<u16, Vec<AdjArray>>,
 }
 
 impl Adjacency {
@@ -158,31 +154,30 @@ impl Adjacency {
     }
 
     pub fn register(&mut self, nodes: usize) {
-        let nodes = std::convert::TryFrom::try_from(nodes).unwrap();
-        let spiral = Spiral { nodes };
+        let nodes = u16::try_from(nodes).unwrap();
 
         self.map
-            .entry(spiral)
-            .or_insert_with(|| Self::create_min_edges(spiral));
+            .entry(nodes)
+            .or_insert_with(|| Self::create_min_edges(nodes));
     }
 
     #[track_caller]
     pub fn get(&self, nodes: usize) -> &Vec<AdjArray> {
-        let nodes = std::convert::TryFrom::try_from(nodes).unwrap();
+        let nodes = u16::try_from(nodes).unwrap();
         self.map
-            .get(&Spiral { nodes })
+            .get(&nodes)
             .unwrap_or_else(|| panic!("unregisted size: {}", nodes))
     }
 
-    fn create_min_edges(spiral: Spiral) -> Vec<AdjArray> {
-        let rotations = rotations(spiral);
+    fn create_min_edges(nodes: u16) -> Vec<AdjArray> {
+        let rotations = rotations(nodes);
 
-        let points = spiral
-            .nodes()
-            .map(|n| n.position(rotations))
+        let points = (0..nodes)
+            .into_iter()
+            .map(move |index| Node { index, nodes }.position(rotations))
             .collect::<Vec<_>>();
 
-        let edges = points
+        let mut edges = points
             .iter()
             .enumerate()
             .flat_map(|(i, p)| {
@@ -192,11 +187,14 @@ impl Adjacency {
                     .skip(i + 1)
                     .map(move |(j, q)| ((*p - *q).magnitude_squared(), (i, j)))
             })
-            .collect::<BTreeSet<_>>();
+            .collect::<Vec<_>>();
 
-        let target = (spiral.nodes as f64 * 3.05) as usize;
-        let iter = edges.into_iter().take(target);
-        let mut edges = vec![AdjArray::default(); spiral.nodes as usize];
+        edges.sort();
+
+        // Taking 3 edges per node wasn't enough to complete the graph
+        let count = (nodes as f64 * 3.05) as usize;
+        let iter = edges.into_iter().take(count);
+        let mut edges = vec![AdjArray::default(); nodes as usize];
 
         for (_, (i, j)) in iter {
             edges[i].push(j);
@@ -205,10 +203,6 @@ impl Adjacency {
 
         edges
     }
-}
-
-pub fn rotations(spiral: Spiral) -> f64 {
-    (spiral.nodes as f64 - 0.25).sqrt() * 2.0
 }
 
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
@@ -227,18 +221,11 @@ impl Node {
         ClosedUnitInterval::fraction(self.index, self.nodes)
     }
 
-    pub fn phi(self) -> Phi {
-        Phi::from(self.fraction())
-    }
-
-    pub fn theta(self, rotations: f64) -> Theta {
-        Theta::fraction(self.fraction(), rotations)
-    }
-
     pub fn coordinate(self, rotations: f64) -> SphericalCoordinate {
+        let fraction = self.fraction();
         SphericalCoordinate {
-            phi: self.phi(),
-            theta: self.theta(rotations),
+            phi: Phi::from(fraction),
+            theta: Theta::fraction(fraction, rotations),
         }
     }
 
@@ -247,22 +234,8 @@ impl Node {
     }
 }
 
-#[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
-pub struct Spiral {
-    nodes: u16,
-}
-
-impl Spiral {
-    pub(crate) fn node(self, index: u16) -> Node {
-        Node {
-            index,
-            nodes: self.nodes,
-        }
-    }
-
-    pub(crate) fn nodes(&self) -> impl Iterator<Item = Node> + '_ {
-        (0..self.nodes).into_iter().map(move |n| self.node(n))
-    }
+fn rotations(nodes: u16) -> f64 {
+    (nodes as f64 - 0.25).sqrt() * 2.0
 }
 
 pub mod units {
@@ -270,6 +243,7 @@ pub mod units {
     use std::cmp::Ordering;
     use std::ops::{Add, Mul, Sub};
 
+    /// Represents a number on the interval [0..1]
     #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
     pub struct ClosedUnitInterval(f64);
 
@@ -284,6 +258,7 @@ pub mod units {
         }
     }
 
+    /// The angle φ is in the range [0..π], and represents the angle relative to the poles
     #[derive(Debug, Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
     pub struct Phi(Angle);
 
@@ -293,6 +268,8 @@ pub mod units {
         }
     }
 
+    /// The angle θ represents the rotation of the spiral in the interval [0..Rτ]
+    /// Where R is the number of rotations, as calculated from the number of nodes by the `rotations` function
     #[derive(Debug, Default, Copy, Clone, Ord, PartialOrd, Eq, PartialEq)]
     pub struct Theta(Angle);
 
@@ -322,6 +299,7 @@ pub mod units {
         }
     }
 
+    /// Represents a point on a sphere of arbitrary radius
     #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
     pub struct SphericalCoordinate {
         pub phi: Phi,

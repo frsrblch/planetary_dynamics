@@ -2,7 +2,7 @@ use rayon::prelude::*;
 use sphere_geometry::adjacency::Adjacency;
 
 fn main() {
-    println!("run started, it usually takes ~9 s...");
+    println!("run started, it usually takes ~4 s...");
     let start = std::time::Instant::now();
     (16..1024).into_par_iter().for_each(|count| {
         let mut adjacency = Adjacency::default();
@@ -29,7 +29,7 @@ fn main() {
     });
     let end = std::time::Instant::now();
     let duration = end - start;
-    println!("finished in {} s", duration.as_secs());
+    println!("finished in {} ms", duration.as_millis());
 }
 
 #[test]
