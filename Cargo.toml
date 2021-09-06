@@ -18,5 +18,9 @@ rayon = "^1.5.1"
 name = "trig"
 harness = false
 
+[[bench]]
+name = "u8_to_f64"
+harness = false
+
 [[example]]
 name = "adjacency_check"
