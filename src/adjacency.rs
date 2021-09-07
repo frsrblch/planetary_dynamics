@@ -35,7 +35,9 @@ mod adj_array {
 
     impl Display for AdjArray {
         fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-            if self.len() > 0 {
+            if self.is_empty() {
+                write!(f, "[]")
+            } else {
                 let last = self.len() - 1;
                 write!(f, "[")?;
                 for (i, n) in self.iter().enumerate() {
@@ -46,8 +48,6 @@ mod adj_array {
                     }
                 }
                 write!(f, "]")
-            } else {
-                write!(f, "[]")
             }
         }
     }
@@ -360,10 +360,16 @@ pub mod units {
         }
     }
 
-    #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
+    #[derive(Debug, Default, Copy, Clone, PartialEq)]
     pub struct AreaFactor(f64);
 
     impl Eq for AreaFactor {}
+
+    impl PartialOrd for AreaFactor {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            self.0.partial_cmp(&other.0)
+        }
+    }
 
     impl Ord for AreaFactor {
         fn cmp(&self, other: &Self) -> Ordering {
@@ -393,10 +399,16 @@ pub mod units {
         }
     }
 
-    #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
+    #[derive(Debug, Default, Copy, Clone, PartialEq)]
     pub struct LengthFactor(f64);
 
     impl Eq for LengthFactor {}
+
+    impl PartialOrd for LengthFactor {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            self.0.partial_cmp(&other.0)
+        }
+    }
 
     impl Ord for LengthFactor {
         fn cmp(&self, other: &Self) -> Ordering {

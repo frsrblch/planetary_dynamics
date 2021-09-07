@@ -1,7 +1,6 @@
 use criterion::*;
 use fxhash::FxHashMap as HashMap;
-// use fnv::FnvHashMap as HashMap;
-// use ahash::AHashMap as HashMap;
+use sphere_geometry::adjacency::units::Phi;
 use sphere_geometry::adjacency::*;
 
 criterion_main! { trig }
@@ -22,7 +21,7 @@ fn trig_cached(c: &mut Criterion) {
 
     let cos = nodes
         .iter()
-        .map(|n| (*n, n.phi()))
+        .map(|n| (*n, Phi::from(n.fraction())))
         .collect::<HashMap<_, _>>();
 
     c.bench_function("trig cached", |b| {
@@ -43,7 +42,7 @@ fn trig_calc(c: &mut Criterion) {
     c.bench_function("trig calc", |b| {
         b.iter(|| {
             for n in &nodes {
-                black_box(n.phi());
+                black_box(Phi::from(n.fraction()));
             }
         })
     });

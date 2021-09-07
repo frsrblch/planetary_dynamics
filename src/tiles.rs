@@ -1,16 +1,16 @@
-use crate::tiles::fraction::FractionU8;
+use crate::tiles::fraction::UnitInterval;
 
 /// Representation of a terrain tile on a planet
 pub struct TileDetails {
     /// The fraction not covered by water
-    pub land: FractionU8,
+    pub land: UnitInterval<u8>,
     /// The fraction of usable terrain (i.e., not mountains, cliffs, etc.)
-    pub plains: FractionU8,
+    pub plains: UnitInterval<u8>,
     /// The fraction covered by thick ice sheets
-    pub glacier: FractionU8,
+    pub glacier: UnitInterval<u8>,
     /// The fraction of snow cover for calculating albedo
     /// Is this a temporary value, and I should just have an albedo value?
-    pub snow: FractionU8,
+    pub snow: UnitInterval<u8>,
 }
 
 impl TileDetails {
@@ -24,7 +24,7 @@ impl TileDetails {
     }
 
     pub fn land(&self) -> f64 {
-        self.land.f64()
+        self.land.into()
     }
 
     pub fn ocean(&self) -> f64 {
@@ -32,11 +32,13 @@ impl TileDetails {
     }
 
     pub fn plains(&self) -> f64 {
-        self.land.raw_f64() * self.plains.raw_f64() * FractionU8::INVERSE_SQUARED
+        self.land.raw_f64() * self.plains.raw_f64() * UnitInterval::<u8>::INVERSE_MAX_SQUARED
     }
 
     pub fn mountains(&self) -> f64 {
-        self.land.raw_f64() * self.plains.inverse().raw_f64() * FractionU8::INVERSE_SQUARED
+        self.land.raw_f64()
+            * self.plains.inverse().raw_f64()
+            * UnitInterval::<u8>::INVERSE_MAX_SQUARED
     }
 }
 
@@ -63,82 +65,94 @@ mod test {
 }
 
 pub mod fraction {
+    use num_traits::{Bounded, NumCast, NumOps, SaturatingAdd, SaturatingSub};
     use std::ops::{Add, AddAssign, Sub, SubAssign};
 
-    #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
-    pub struct FractionU8(u8);
+    pub trait FractionalInteger: NumCast + Bounded + NumOps + Copy {
+        const MAX_F64: f64;
+    }
 
-    impl From<f64> for FractionU8 {
+    impl FractionalInteger for u8 {
+        const MAX_F64: f64 = Self::MAX as f64;
+    }
+
+    impl FractionalInteger for u16 {
+        const MAX_F64: f64 = Self::MAX as f64;
+    }
+
+    #[derive(Debug, Default, Copy, Clone, Eq, PartialEq, Ord, PartialOrd, Hash)]
+    pub struct UnitInterval<T>(T);
+
+    impl<T: FractionalInteger> From<f64> for UnitInterval<T> {
         #[inline]
         fn from(value: f64) -> Self {
-            FractionU8::new(value)
+            Self::new(value)
         }
     }
 
-    impl From<FractionU8> for f64 {
+    impl<T: FractionalInteger> From<UnitInterval<T>> for f64 {
         #[inline]
-        fn from(value: FractionU8) -> Self {
+        fn from(value: UnitInterval<T>) -> Self {
             value.f64()
         }
     }
 
-    impl FractionU8 {
-        pub const ZERO: Self = Self(0);
-        pub const MAX: Self = Self(u8::MAX);
-        pub const INVERSE: f64 = 1.0 / u8::MAX as f64;
-        pub const INVERSE_SQUARED: f64 = Self::INVERSE * Self::INVERSE;
+    impl<T: FractionalInteger> UnitInterval<T> {
+        pub const INVERSE_MAX: f64 = 1.0 / T::MAX_F64;
+        pub const INVERSE_MAX_SQUARED: f64 = Self::INVERSE_MAX * Self::INVERSE_MAX;
 
         #[inline]
         pub fn new(value: f64) -> Self {
-            let value = value.max(0.0).min(1.0) * 255.0;
-            Self(value as u8)
-        }
-
-        #[inline]
-        pub fn raw_f64(self) -> f64 {
-            self.0 as f64
+            let value = num_traits::clamp(value, 0.0, 1.0) * T::MAX_F64; // [0..T::MAX_F64]
+            let value = NumCast::from(value).unwrap(); // UNWRAP: value clamped to known range
+            Self(value)
         }
 
         #[inline]
         pub fn f64(self) -> f64 {
-            self.raw_f64() * Self::INVERSE
+            self.raw_f64() * Self::INVERSE_MAX
+        }
+
+        #[inline]
+        pub fn raw_f64(self) -> f64 {
+            self.0.to_f64().unwrap()
         }
 
         #[inline]
         pub fn inverse(self) -> Self {
-            Self(255 - self.0)
+            Self(T::max_value() - self.0)
         }
     }
 
-    impl Add<u8> for FractionU8 {
+    impl<T: FractionalInteger + SaturatingAdd> Add<T> for UnitInterval<T> {
         type Output = Self;
 
         #[inline]
-        fn add(self, rhs: u8) -> Self::Output {
-            Self(self.0.saturating_add(rhs))
+        fn add(self, rhs: T) -> Self::Output {
+            Self(self.0.saturating_add(&rhs))
         }
     }
 
-    impl AddAssign<u8> for FractionU8 {
+    impl<T: FractionalInteger + SaturatingAdd> AddAssign<T> for UnitInterval<T> {
         #[inline]
-        fn add_assign(&mut self, rhs: u8) {
-            *self = *self + rhs;
+        fn add_assign(&mut self, rhs: T) {
+            *self = self.add(rhs);
         }
     }
 
-    impl Sub<u8> for FractionU8 {
+    impl<T: FractionalInteger + SaturatingSub> Sub<T> for UnitInterval<T> {
         type Output = Self;
 
         #[inline]
-        fn sub(self, rhs: u8) -> Self::Output {
-            Self(self.0.saturating_sub(rhs))
+        fn sub(self, rhs: T) -> Self::Output {
+            Self(self.0.saturating_sub(&rhs))
         }
     }
 
-    impl SubAssign<u8> for FractionU8 {
+    impl<T: FractionalInteger + SaturatingSub> SubAssign<T> for UnitInterval<T> {
         #[inline]
-        fn sub_assign(&mut self, rhs: u8) {
-            *self = *self - rhs;
+        fn sub_assign(&mut self, rhs: T) {
+            *self = self.sub(rhs);
         }
     }
 
@@ -148,30 +162,51 @@ pub mod fraction {
 
         #[test]
         fn fraction_u8_new() {
-            assert_eq!(FractionU8::ZERO, FractionU8::new(-1.0));
-            assert_eq!(FractionU8::ZERO, FractionU8::new(0.0));
-            assert_eq!(127, FractionU8::new(0.5).0);
-            assert_eq!(FractionU8::MAX, FractionU8::new(1.0));
-            assert_eq!(FractionU8::MAX, FractionU8::new(2.0));
-            assert_eq!(FractionU8::ZERO, FractionU8::new(f64::NAN));
+            assert_eq!(UnitInterval::<u8>::default(), UnitInterval::new(-1.0));
+            assert_eq!(UnitInterval::<u8>::default(), UnitInterval::new(0.0));
+            assert_eq!(127, UnitInterval::<u8>::new(0.5).0);
+            assert_eq!(UnitInterval::<u8>::new(1.0), UnitInterval::new(2.0));
+        }
+
+        #[test]
+        fn fraction_u16_new() {
+            assert_eq!(UnitInterval::<u16>::default(), UnitInterval::new(-1.0));
+            assert_eq!(UnitInterval::<u16>::default(), UnitInterval::new(0.0));
+            assert_eq!(32767, UnitInterval::<u16>::new(0.5).0);
+            assert_eq!(UnitInterval::<u16>::new(1.0), UnitInterval::new(2.0));
         }
 
         #[test]
         fn fraction_u8_add() {
-            assert_eq!(1, (FractionU8::default() + 1).0);
-            assert_eq!(FractionU8::MAX, (FractionU8::new(1.0) + 1));
+            assert_eq!(1, (UnitInterval::<u8>::default() + 1).0);
+            assert_eq!(u8::MAX, (UnitInterval::<u8>::new(1.0) + 1).0);
         }
 
         #[test]
         fn fraction_u8_sub() {
-            assert_eq!(FractionU8::ZERO, (FractionU8::default() - 1));
-            assert_eq!(254, (FractionU8::new(1.0) - 1).0);
+            assert_eq!(UnitInterval::<u8>::default(), (UnitInterval::default() - 1));
+            assert_eq!(254, (UnitInterval::<u8>::new(1.0) - 1).0);
+        }
+
+        #[test]
+        fn fraction_u16_add() {
+            assert_eq!(1, (UnitInterval::<u16>::default() + 1).0);
+            assert_eq!(u16::MAX, (UnitInterval::<u16>::new(1.0) + 1).0);
+        }
+
+        #[test]
+        fn fraction_u16_sub() {
+            assert_eq!(
+                UnitInterval::<u16>::default(),
+                (UnitInterval::default() - 1)
+            );
+            assert_eq!(65534, (UnitInterval::<u16>::new(1.0) - 1).0);
         }
 
         #[test]
         fn into_f64() {
-            assert_eq!(0.0, f64::from(FractionU8::new(0.0)));
-            assert_eq!(1.0, f64::from(FractionU8::new(1.0)));
+            assert_eq!(0.0, From::from(UnitInterval::<u8>::new(0.0)));
+            assert_eq!(1.0, From::from(UnitInterval::<u8>::new(1.0)));
         }
     }
 }

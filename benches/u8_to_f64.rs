@@ -1,5 +1,5 @@
 use criterion::*;
-use sphere_geometry::tiles::fraction::FractionU8;
+use sphere_geometry::tiles::fraction::UnitInterval;
 use std::ops::AddAssign;
 
 criterion_main! {
@@ -12,8 +12,8 @@ criterion_group! {
 }
 
 fn u8_to_f64(c: &mut Criterion) {
-    let u8_fraction = FractionU8::new(0.2);
-    let u8s = [FractionU8::new(1.0); 1024];
+    let u8_fraction = UnitInterval::<u8>::new(0.2);
+    let u8s = [UnitInterval::<u8>::new(1.0); 1024];
     let mut f64s = [0f64; 1024];
     let other_f64s = [1f64; 1024];
     c.bench_function("u8_to_f64", |b| {

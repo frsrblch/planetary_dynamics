@@ -1,5 +1,5 @@
 #![allow(mixed_script_confusables)]
-#![feature(maybe_uninit_uninit_array)]
+#![feature(maybe_uninit_uninit_array, const_option)]
 
 // TODO rename to planetary_dynamics
 
