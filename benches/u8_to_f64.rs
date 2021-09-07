@@ -1,5 +1,5 @@
 use criterion::*;
-use sphere_geometry::tiles::fraction::UnitInterval;
+use planetary_dynamics::tiles::fraction::UnitInterval;
 use std::ops::AddAssign;
 
 criterion_main! {

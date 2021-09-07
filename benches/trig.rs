@@ -1,7 +1,7 @@
 use criterion::*;
 use fxhash::FxHashMap as HashMap;
-use sphere_geometry::adjacency::units::Phi;
-use sphere_geometry::adjacency::*;
+use planetary_dynamics::adjacency::units::Phi;
+use planetary_dynamics::adjacency::*;
 
 criterion_main! { trig }
 

@@ -1,5 +1,5 @@
+use planetary_dynamics::adjacency::Adjacency;
 use rayon::prelude::*;
-use sphere_geometry::adjacency::Adjacency;
 
 fn main() {
     println!("run started, it usually takes ~4 s...");
