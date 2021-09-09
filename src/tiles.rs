@@ -1,6 +1,8 @@
 use crate::tiles::fraction::UnitInterval;
+use std::ops::Not;
 
 /// Representation of a terrain tile on a planet
+#[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
 pub struct TileDetails {
     /// The fraction not covered by water
     pub land: UnitInterval<u8>,
@@ -28,17 +30,15 @@ impl TileDetails {
     }
 
     pub fn ocean(&self) -> f64 {
-        self.land.inverse().f64()
+        self.land.not().f64()
     }
 
     pub fn plains(&self) -> f64 {
-        self.land.raw_f64() * self.plains.raw_f64() * UnitInterval::<u8>::INVERSE_MAX_SQUARED
+        (self.land * self.plains).f64()
     }
 
     pub fn mountains(&self) -> f64 {
-        self.land.raw_f64()
-            * self.plains.inverse().raw_f64()
-            * UnitInterval::<u8>::INVERSE_MAX_SQUARED
+        (self.land * !self.plains).f64()
     }
 }
 
@@ -66,7 +66,7 @@ mod test {
 
 pub mod fraction {
     use num_traits::{Bounded, NumCast, NumOps, SaturatingAdd, SaturatingSub};
-    use std::ops::{Add, AddAssign, Sub, SubAssign};
+    use std::ops::{Add, AddAssign, Mul, Not, Sub, SubAssign};
 
     pub trait FractionalInteger: NumCast + Bounded + NumOps + Copy {
         const MAX_F64: f64;
@@ -98,8 +98,8 @@ pub mod fraction {
     }
 
     impl<T: FractionalInteger> UnitInterval<T> {
-        pub const INVERSE_MAX: f64 = 1.0 / T::MAX_F64;
-        pub const INVERSE_MAX_SQUARED: f64 = Self::INVERSE_MAX * Self::INVERSE_MAX;
+        const RECIP: f64 = 1.0 / T::MAX_F64;
+        const RECIP_32: f32 = Self::RECIP as f32;
 
         #[inline]
         pub fn new(value: f64) -> Self {
@@ -109,8 +109,18 @@ pub mod fraction {
         }
 
         #[inline]
+        pub fn byte(self) -> T {
+            self.0
+        }
+
+        #[inline]
         pub fn f64(self) -> f64 {
-            self.raw_f64() * Self::INVERSE_MAX
+            self.raw_f64() * Self::RECIP
+        }
+
+        #[inline]
+        pub fn f32(self) -> f32 {
+            self.raw_f32() * Self::RECIP_32
         }
 
         #[inline]
@@ -119,8 +129,21 @@ pub mod fraction {
         }
 
         #[inline]
+        pub fn raw_f32(self) -> f32 {
+            self.0.to_f32().unwrap()
+        }
+
+        #[inline]
         pub fn inverse(self) -> Self {
             Self(T::max_value() - self.0)
+        }
+    }
+
+    impl Mul for UnitInterval<u8> {
+        type Output = UnitInterval<u16>;
+
+        fn mul(self, rhs: Self) -> Self::Output {
+            UnitInterval(self.0 as u16 * rhs.0 as u16)
         }
     }
 
@@ -153,6 +176,15 @@ pub mod fraction {
         #[inline]
         fn sub_assign(&mut self, rhs: T) {
             *self = self.sub(rhs);
+        }
+    }
+
+    impl<T: FractionalInteger> Not for UnitInterval<T> {
+        type Output = Self;
+
+        #[inline]
+        fn not(self) -> Self::Output {
+            Self(T::max_value() - self.0)
         }
     }
 

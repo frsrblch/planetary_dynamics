@@ -1,5 +1,6 @@
-#![allow(mixed_script_confusables)]
-#![feature(maybe_uninit_uninit_array, const_option)]
+// TODO incorporate orbital_mechanics
+// TODO add orbital parameters related to rotation speed and axial tilt
+// TODO simulate temperature by way of
 
 pub mod adjacency;
 pub mod tiles;
