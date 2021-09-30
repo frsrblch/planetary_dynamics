@@ -1,6 +1,6 @@
 use criterion::*;
-use planetary_dynamics::tiles::fraction::UnitInterval;
-use planetary_dynamics::tiles::TileDetails;
+use planetary_dynamics::tiles::unit_interval::UnitInterval;
+use planetary_dynamics::tiles::Terrain;
 use std::ops::AddAssign;
 
 criterion_main! {
@@ -13,8 +13,8 @@ criterion_group! {
 }
 
 fn u8_to_f64(c: &mut Criterion) {
-    let u8_fraction = UnitInterval::<u8>::new(0.2);
-    let u8s = [UnitInterval::<u8>::new(1.0); 1024];
+    let u8_fraction = UnitInterval::<u8>::from(0.2);
+    let u8s = [UnitInterval::<u8>::from(1.0); 1024];
     let mut f64s = [0f64; 1024];
     let other_f64s = [1f64; 1024];
     c.bench_function("u8_to_f64", |b| {
@@ -59,7 +59,7 @@ fn u8_u16_comparison(c: &mut Criterion) {
 
     const N: usize = 1024 * 1024;
 
-    let details = vec![TileDetails::new(0.1, 0.2, 0.3, 0.4); N];
+    let details = vec![Terrain::new_fraction(0.1, 0.2, 0.3); N];
     let x = vec![2u8; N];
     let x16 = vec![2u16; N];
     let x32 = vec![2u32; N];
@@ -128,14 +128,6 @@ fn u8_u16_comparison(c: &mut Criterion) {
                 .for_each(|((f, f0), f1)| {
                     f.add_assign(f0.mul(f1));
                 })
-        })
-    })
-    .bench_function("struct u8 to f32", |b| {
-        const RECIP: f32 = 1.0 / u16::MAX as f32;
-        b.iter(|| {
-            f.iter_mut().zip(details.iter()).for_each(|(f, details)| {
-                f.add_assign(details.land.byte() as f32 * details.plains.byte() as f32 * RECIP);
-            })
         })
     });
 }

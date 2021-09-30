@@ -10,6 +10,8 @@ orbital_mechanics = { git = "https://github.com/frsrblch/orbital_mechanics" }
 physics_types = { git = "https://github.com/frsrblch/physics_types" }
 fxhash = "^0.2.1"
 num-traits = "^0.2.14"
+rand = "^0.8.4"
+itertools = "^0.10.1"
 
 [dev-dependencies]
 criterion = "0.3.5"

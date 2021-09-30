@@ -1,44 +1,71 @@
-use crate::tiles::fraction::UnitInterval;
-use std::ops::Not;
+use crate::tiles::unit_interval::UnitInterval;
+use std::ops::Sub;
 
-/// Representation of a terrain tile on a planet
 #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
-pub struct TileDetails {
-    /// The fraction not covered by water
-    pub land: UnitInterval<u8>,
-    /// The fraction of usable terrain (i.e., not mountains, cliffs, etc.)
+pub struct Terrain {
+    /// The fraction covered by ocean, counted from the 'left'
+    pub ocean: UnitInterval<u8>,
+    /// The fraction covered by ocean, counted from the 'right'
+    pub mountains: UnitInterval<u8>,
+    /// The fraction covered by plains, counted oceans on the 'left' and mountains on the 'right'
     pub plains: UnitInterval<u8>,
-    /// The fraction covered by thick ice sheets
+    /// The fraction covered by glacier, counted from the 'right'
+    /// Mountains will be covered before plains, which are covered before oceans.
     pub glacier: UnitInterval<u8>,
-    /// The fraction of snow cover for calculating albedo
-    /// Is this a temporary value, and I should just have an albedo value?
-    pub snow: UnitInterval<u8>,
 }
 
-impl TileDetails {
-    pub fn new(land: f64, plains: f64, glacier: f64, snow: f64) -> Self {
-        TileDetails {
-            land: land.into(),
-            plains: plains.into(),
-            glacier: glacier.into(),
-            snow: snow.into(),
+impl Terrain {
+    /// Generates a terrain from the given fractions.
+    ///
+    /// # Arguments
+    ///
+    /// * `ocean`: the fraction of the tile covered by water
+    /// * `mountain`: the fraction of the land covered by mountains
+    /// * `glacier`: the fraction of the tile covered by glacier.
+    ///
+    /// returns: Terrain
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use planetary_dynamics::tiles::Terrain;
+    /// let pacific = Terrain::new_fraction(0.97, 0.6, 0.0);
+    /// let arizona = Terrain::new_fraction(0.0, 0.25, 0.0);
+    /// let arctic = Terrain::new_fraction(0.8, 0.5, 0.8);
+    /// ```
+    pub fn new_fraction(ocean: f64, mountain: f64, glacier: f64) -> Self {
+        let ocean = UnitInterval::<u8>::from(ocean);
+        let land = ocean.inverse();
+
+        let mountains = UnitInterval::<u8>::from(mountain);
+        let mountains = (land * mountains).u8();
+        let plains = land - mountains;
+
+        let glacier = UnitInterval::from(glacier);
+
+        debug_assert_eq!(u8::MAX, ocean.byte() + plains.byte() + mountains.byte());
+
+        Self {
+            ocean,
+            plains,
+            mountains,
+            glacier,
         }
     }
 
-    pub fn land(&self) -> f64 {
-        self.land.into()
-    }
+    #[inline]
+    pub fn new(ocean: u8, mountains: u8, glacier: u8) -> Self {
+        let plains = 255u8
+            .sub(mountains)
+            .checked_sub(ocean)
+            .expect("mountains + ocean > 255");
 
-    pub fn ocean(&self) -> f64 {
-        self.land.not().f64()
-    }
-
-    pub fn plains(&self) -> f64 {
-        (self.land * self.plains).f64()
-    }
-
-    pub fn mountains(&self) -> f64 {
-        (self.land * !self.plains).f64()
+        Self {
+            ocean: UnitInterval::<u8>::new(ocean),
+            mountains: UnitInterval::<u8>::new(mountains),
+            plains: UnitInterval::new(plains),
+            glacier: UnitInterval::<u8>::new(glacier),
+        }
     }
 }
 
@@ -46,25 +73,29 @@ impl TileDetails {
 mod test {
     use super::*;
 
-    fn round_to_percent(value: f64) -> f64 {
-        (value * 100.0).round() * 0.01
+    #[test]
+    fn new_fraction_fuzz() {
+        use rand::{thread_rng, Rng};
+        let mut rng = thread_rng();
+
+        for _ in 0..1000 {
+            Terrain::new_fraction(rng.gen(), rng.gen(), rng.gen());
+        }
     }
 
     #[test]
-    fn tile_to_fractions() {
-        let tile = TileDetails::new(0.8, 0.4, 0.0, 0.0);
+    #[should_panic]
+    fn tile_details_new_given_ocean_mountain_gt_255() {
+        Terrain::new(200, 56, 0);
+    }
 
-        assert_eq!(0.8, tile.land());
-        assert_eq!(0.2, tile.ocean());
-        assert_eq!(round_to_percent(0.8 * 0.4), round_to_percent(tile.plains()));
-        assert_eq!(
-            round_to_percent(0.8 * 0.6),
-            round_to_percent(tile.mountains())
-        );
+    #[test]
+    fn tile_details_new_given_ocean_mountain_le_255() {
+        Terrain::new(200, 55, 0);
     }
 }
 
-pub mod fraction {
+pub mod unit_interval {
     use num_traits::{Bounded, NumCast, NumOps, SaturatingAdd, SaturatingSub};
     use std::ops::{Add, AddAssign, Mul, Not, Sub, SubAssign};
 
@@ -86,6 +117,14 @@ pub mod fraction {
     impl<T: FractionalInteger> From<f64> for UnitInterval<T> {
         #[inline]
         fn from(value: f64) -> Self {
+            let value = num_traits::clamp(value, 0.0, 1.0) * T::MAX_F64; // [0..T::MAX_F64]
+            let value = NumCast::from(value.round()).unwrap(); // UNWRAP: value clamped to known range
+            Self(value)
+        }
+    }
+
+    impl<T: FractionalInteger> From<T> for UnitInterval<T> {
+        fn from(value: T) -> Self {
             Self::new(value)
         }
     }
@@ -102,9 +141,7 @@ pub mod fraction {
         const RECIP_32: f32 = Self::RECIP as f32;
 
         #[inline]
-        pub fn new(value: f64) -> Self {
-            let value = num_traits::clamp(value, 0.0, 1.0) * T::MAX_F64; // [0..T::MAX_F64]
-            let value = NumCast::from(value).unwrap(); // UNWRAP: value clamped to known range
+        pub fn new(value: T) -> Self {
             Self(value)
         }
 
@@ -139,11 +176,27 @@ pub mod fraction {
         }
     }
 
+    impl UnitInterval<u16> {
+        pub fn u8(self) -> UnitInterval<u8> {
+            let value = (self.0 / u8::MAX as u16) as u8;
+            UnitInterval::new(value)
+        }
+    }
+
     impl Mul for UnitInterval<u8> {
         type Output = UnitInterval<u16>;
 
         fn mul(self, rhs: Self) -> Self::Output {
             UnitInterval(self.0 as u16 * rhs.0 as u16)
+        }
+    }
+
+    impl<T: FractionalInteger + SaturatingAdd> Add for UnitInterval<T> {
+        type Output = Self;
+
+        #[inline]
+        fn add(self, rhs: Self) -> Self::Output {
+            Self(self.0.saturating_add(&rhs.0))
         }
     }
 
@@ -156,10 +209,26 @@ pub mod fraction {
         }
     }
 
+    impl<T: FractionalInteger + SaturatingAdd> AddAssign for UnitInterval<T> {
+        #[inline]
+        fn add_assign(&mut self, rhs: Self) {
+            *self = self.add(rhs);
+        }
+    }
+
     impl<T: FractionalInteger + SaturatingAdd> AddAssign<T> for UnitInterval<T> {
         #[inline]
         fn add_assign(&mut self, rhs: T) {
             *self = self.add(rhs);
+        }
+    }
+
+    impl<T: FractionalInteger + SaturatingSub> Sub for UnitInterval<T> {
+        type Output = Self;
+
+        #[inline]
+        fn sub(self, rhs: Self) -> Self::Output {
+            Self(self.0.saturating_sub(&rhs.0))
         }
     }
 
@@ -169,6 +238,13 @@ pub mod fraction {
         #[inline]
         fn sub(self, rhs: T) -> Self::Output {
             Self(self.0.saturating_sub(&rhs))
+        }
+    }
+
+    impl<T: FractionalInteger + SaturatingSub> SubAssign for UnitInterval<T> {
+        #[inline]
+        fn sub_assign(&mut self, rhs: Self) {
+            *self = self.sub(rhs);
         }
     }
 
@@ -194,36 +270,37 @@ pub mod fraction {
 
         #[test]
         fn fraction_u8_new() {
-            assert_eq!(UnitInterval::<u8>::default(), UnitInterval::new(-1.0));
-            assert_eq!(UnitInterval::<u8>::default(), UnitInterval::new(0.0));
-            assert_eq!(127, UnitInterval::<u8>::new(0.5).0);
-            assert_eq!(UnitInterval::<u8>::new(1.0), UnitInterval::new(2.0));
+            assert_eq!(UnitInterval::<u8>::default(), UnitInterval::from(-1.0));
+            assert_eq!(UnitInterval::<u8>::default(), UnitInterval::from(0.0));
+            assert_eq!(128, UnitInterval::<u8>::from(0.5).0);
+            assert_eq!(UnitInterval::<u8>::from(1.0), UnitInterval::from(2.0));
+            assert_eq!(255, UnitInterval::<u8>::from(0.999).0);
         }
 
         #[test]
         fn fraction_u16_new() {
-            assert_eq!(UnitInterval::<u16>::default(), UnitInterval::new(-1.0));
-            assert_eq!(UnitInterval::<u16>::default(), UnitInterval::new(0.0));
-            assert_eq!(32767, UnitInterval::<u16>::new(0.5).0);
-            assert_eq!(UnitInterval::<u16>::new(1.0), UnitInterval::new(2.0));
+            assert_eq!(UnitInterval::<u16>::default(), UnitInterval::from(-1.0));
+            assert_eq!(UnitInterval::<u16>::default(), UnitInterval::from(0.0));
+            assert_eq!(32768, UnitInterval::<u16>::from(0.5).0);
+            assert_eq!(UnitInterval::<u16>::from(1.0), UnitInterval::from(2.0));
         }
 
         #[test]
         fn fraction_u8_add() {
             assert_eq!(1, (UnitInterval::<u8>::default() + 1).0);
-            assert_eq!(u8::MAX, (UnitInterval::<u8>::new(1.0) + 1).0);
+            assert_eq!(u8::MAX, (UnitInterval::<u8>::from(1.0) + 1).0);
         }
 
         #[test]
         fn fraction_u8_sub() {
             assert_eq!(UnitInterval::<u8>::default(), (UnitInterval::default() - 1));
-            assert_eq!(254, (UnitInterval::<u8>::new(1.0) - 1).0);
+            assert_eq!(254, (UnitInterval::<u8>::from(1.0) - 1).0);
         }
 
         #[test]
         fn fraction_u16_add() {
             assert_eq!(1, (UnitInterval::<u16>::default() + 1).0);
-            assert_eq!(u16::MAX, (UnitInterval::<u16>::new(1.0) + 1).0);
+            assert_eq!(u16::MAX, (UnitInterval::<u16>::from(1.0) + 1).0);
         }
 
         #[test]
@@ -232,13 +309,18 @@ pub mod fraction {
                 UnitInterval::<u16>::default(),
                 (UnitInterval::default() - 1)
             );
-            assert_eq!(65534, (UnitInterval::<u16>::new(1.0) - 1).0);
+            assert_eq!(65534, (UnitInterval::<u16>::from(1.0) - 1).0);
         }
 
         #[test]
         fn into_f64() {
-            assert_eq!(0.0, From::from(UnitInterval::<u8>::new(0.0)));
-            assert_eq!(1.0, From::from(UnitInterval::<u8>::new(1.0)));
+            assert_eq!(0.0, UnitInterval::<u8>::from(0.0).f64());
+            assert_eq!(1.0, UnitInterval::<u8>::from(1.0).f64());
+        }
+
+        #[test]
+        fn fraction_u8_inverse() {
+            assert_eq!(UnitInterval(200u8), UnitInterval(55u8).inverse());
         }
     }
 }

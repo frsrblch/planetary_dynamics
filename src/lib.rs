@@ -3,4 +3,5 @@
 // TODO simulate temperature by way of
 
 pub mod adjacency;
+pub mod tile_gen;
 pub mod tiles;

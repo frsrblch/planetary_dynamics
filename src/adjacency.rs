@@ -1,6 +1,6 @@
 #![allow(non_snake_case)]
 
-use crate::adjacency::adj_array::AdjArray;
+pub use crate::adjacency::adj_array::AdjArray;
 use crate::adjacency::units::*;
 use fxhash::FxHashMap as HashMap;
 use std::convert::TryFrom;
