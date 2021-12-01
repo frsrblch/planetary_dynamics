@@ -9,12 +9,6 @@ use std::fmt::{Display, Formatter};
 use std::iter::Enumerate;
 use std::ops::AddAssign;
 
-// #[derive(Debug, Copy, Clone, PartialEq)]
-// struct Plate {
-//     pub plate_type: ContinentType,
-//     pub roll: Roll,
-// }
-
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum ContinentType {
     Land,
@@ -48,22 +42,6 @@ impl Display for Continent {
         write!(f, "C{}", self.0)
     }
 }
-
-// #[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-// struct Roll(i32);
-
-// impl Roll {
-//     fn distance(&self, rhs: Self) -> i32 {
-//         use std::ops::Sub;
-//         self.0.sub(rhs.0).abs()
-//     }
-// }
-
-// impl Distribution<Roll> for Standard {
-//     fn sample<R: Rng + ?Sized>(&self, rng: &mut R) -> Roll {
-//         Roll(rng.gen_range(0..1000))
-//     }
-// }
 
 struct Continents<I> {
     enumerate: Enumerate<I>,
