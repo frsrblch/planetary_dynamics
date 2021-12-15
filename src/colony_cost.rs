@@ -56,3 +56,53 @@ impl Shielding {
         }
     }
 }
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn colony_cost_1() {
+        let ideal = ColonyCost::new(
+            Temperature::in_k(288.0)..Temperature::in_k(288.0),
+            Pressure::in_atm(1.0),
+            Shielding::Shielded,
+        );
+        assert!(ideal < ColonyCost(1.05))
+    }
+
+    #[test]
+    fn pressure_min() {
+        let vac = ColonyCost::pressure_min(Pressure::zero());
+        let ideal = ColonyCost::pressure_min(Pressure::in_atm(1.0));
+        let high = ColonyCost::pressure_min(Pressure::in_atm(2.0));
+
+        assert!(vac > ideal);
+        assert!(high > ideal);
+    }
+
+    #[test]
+    fn temperature_min() {
+        fn get_cost(deg_c: Range<f64>) -> f64 {
+            let t0 = Temperature::in_c(deg_c.start);
+            let t1 = Temperature::in_c(deg_c.end);
+            ColonyCost::temperature_min(t0..t1)
+        }
+
+        let ideal = get_cost(20.0..20.0);
+        let cold = get_cost(-20.0..20.0);
+        let frozen = get_cost(-40.0..20.0);
+        let hot = get_cost(20.0..40.0);
+
+        assert!(hot > ideal);
+        assert!(cold > ideal);
+        assert!(frozen > cold);
+    }
+
+    #[test]
+    fn shielding_min() {
+        use Shielding::*;
+        assert!(Shielded.min_cost() < Partial.min_cost());
+        assert!(Partial.min_cost() < Unshielded.min_cost());
+    }
+}
