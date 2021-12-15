@@ -5,6 +5,7 @@
 // TODO simulate temperature
 
 pub mod adjacency;
+pub mod colony_cost;
 pub mod solar_radiation;
 pub mod tile_gen;
 pub mod tiles;

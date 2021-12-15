@@ -47,6 +47,7 @@ pub const N: Element = Element::Nitrogen;
 use gen_id_enum_derive::multi_enum_array;
 
 multi_enum_array! {
+    #[derive(Debug, Copy, Clone, Eq, PartialEq)]
     pub enum Gas {
         Hydrogen,
         Helium,
