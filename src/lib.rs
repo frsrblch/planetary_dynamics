@@ -1,4 +1,4 @@
-#![feature(const_trait_impl)]
+#![feature(const_trait_impl, const_fn_floating_point_arithmetic)]
 
 // TODO incorporate orbital_mechanics
 // TODO add orbital parameters related to rotation speed (period) and axial tilt (line)

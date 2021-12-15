@@ -1,3 +1,4 @@
+use crate::solar_radiation::RadiativeAbsorption;
 use fractional_int::FractionalU8;
 use std::ops::Sub;
 
@@ -66,11 +67,30 @@ impl Terrain {
             glacier: FractionalU8::new(glacier),
         }
     }
+
+    pub fn absorption(
+        &self,
+        ground: RadiativeAbsorption,
+        clouds: FractionalU8,
+    ) -> RadiativeAbsorption {
+        let iceless_ocean = (!self.glacier).min(self.ocean);
+        let iceless_ground = self.plains + self.mountains - self.glacier;
+
+        let glacier = RadiativeAbsorption::ICE * self.glacier;
+        let ocean = RadiativeAbsorption::WATER * iceless_ocean;
+        let land = ground * iceless_ground;
+
+        let surface = glacier.add(ocean).add(land) * !clouds;
+        let clouds = RadiativeAbsorption::CLOUD * clouds;
+
+        surface.add(clouds)
+    }
 }
 
 #[cfg(test)]
 mod test {
     use super::*;
+    use crate::solar_radiation::Albedo;
 
     #[test]
     fn new_fraction_fuzz() {
@@ -91,5 +111,19 @@ mod test {
     #[test]
     fn tile_details_new_given_ocean_mountain_le_255() {
         Terrain::new(200, 55, 0);
+    }
+
+    #[test]
+    fn earth_albedo() {
+        use std::ops::Not;
+
+        let tile = Terrain::new_fraction(0.7, 0.24, 0.03);
+        let absorption = tile.absorption(Albedo::new(0.18).not(), FractionalU8::new_f64(0.51));
+
+        let min = RadiativeAbsorption::new(0.69);
+        let max = RadiativeAbsorption::new(0.71);
+
+        assert!(absorption < max, "{:.2} < {:.2}", absorption.0, max.0);
+        assert!(absorption > min, "{:.2} > {:.2}", absorption.0, min.0);
     }
 }

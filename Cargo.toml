@@ -18,6 +18,11 @@ fractional_int = { git = "https://github.com/frsrblch/fractional_int" }
 
 [dev-dependencies]
 rayon = "^1.5.1"
+criterion = "*"
 
 [[example]]
 name = "adjacency_check"
+
+[[bench]]
+name = "terrain_absorption"
+harness = false

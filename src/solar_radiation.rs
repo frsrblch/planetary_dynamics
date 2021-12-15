@@ -1,5 +1,7 @@
+use fractional_int::FractionalU8;
 use iter_context::ContextualIterator;
 use physics_types::{Duration, MolecularMass};
+use std::ops::Not;
 
 // TODO incorporate chemicals that increase albedo
 
@@ -136,14 +138,87 @@ impl Emissivity {
 }
 
 /// radiative absorption = 1 - albedo
+/// https://en.wikipedia.org/wiki/Albedo
 #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
-pub struct RadiativeAbsorption(f64);
+pub struct RadiativeAbsorption(pub(crate) f64);
 
 impl RadiativeAbsorption {
-    #[inline]
-    pub fn new(value: f64) -> Self {
-        assert!(value > 0.0 && value <= 1.0);
+    pub const SNOW: Self = Albedo::SNOW.not();
+    pub const CLOUD: Self = Albedo::CLOUD.not();
+    pub const ICE: Self = Albedo::ICE.not();
+    pub const FARMLAND: Self = Albedo::FARMLAND.not();
+    pub const CONCRETE: Self = Albedo::CONCRETE.not();
+    pub const FOREST: Self = Albedo::FOREST.not();
+    pub const WATER: Self = Albedo::WATER.not();
+
+    pub const fn new(value: f64) -> Self {
+        debug_assert!(value > 0.0 && value <= 1.0);
+
         Self(value)
+    }
+
+    // Limited to crate because adding fractions only makes sense in certain contexts
+    pub fn add(self, rhs: Self) -> Self {
+        Self::new(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::Add for RadiativeAbsorption {
+    type Output = Self;
+
+    fn add(self, rhs: Self) -> Self::Output {
+        Self(self.0 + rhs.0)
+    }
+}
+
+impl std::ops::Mul<FractionalU8> for RadiativeAbsorption {
+    type Output = Self;
+
+    fn mul(self, rhs: FractionalU8) -> Self::Output {
+        Self(self.0 * rhs.f64())
+    }
+}
+
+impl std::ops::Mul<RadiativeAbsorption> for FractionalU8 {
+    type Output = RadiativeAbsorption;
+
+    fn mul(self, rhs: RadiativeAbsorption) -> Self::Output {
+        RadiativeAbsorption(self.f64() * rhs.0)
+    }
+}
+
+impl const std::ops::Not for RadiativeAbsorption {
+    type Output = Albedo;
+
+    fn not(self) -> Self::Output {
+        Albedo(1.0 - self.0)
+    }
+}
+
+#[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
+pub struct Albedo(pub(crate) f64);
+
+impl Albedo {
+    pub const SNOW: Self = Self(0.8);
+    pub const CLOUD: Self = Self(0.5);
+    pub const ICE: Self = Self(0.35);
+    pub const FARMLAND: Self = Self(0.2);
+    pub const CONCRETE: Self = Self(0.4);
+    pub const FOREST: Self = Self(0.1);
+    pub const WATER: Self = Self(0.06);
+
+    pub const fn new(value: f64) -> Self {
+        debug_assert!(value > 0.0 && value <= 1.0);
+
+        Self(value)
+    }
+}
+
+impl const std::ops::Not for Albedo {
+    type Output = RadiativeAbsorption;
+
+    fn not(self) -> Self::Output {
+        RadiativeAbsorption(1.0 - self.0)
     }
 }
 
@@ -152,8 +227,8 @@ impl RadiativeAbsorption {
 pub struct InfraredTransparency(f64);
 
 impl InfraredTransparency {
-    pub fn new(value: f64) -> Self {
-        assert!(value > 0.0 && value <= 1.0);
+    pub const fn new(value: f64) -> Self {
+        debug_assert!(value > 0.0 && value <= 1.0);
         Self(value)
     }
 }
