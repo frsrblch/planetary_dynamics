@@ -14,7 +14,7 @@ rand = "^0.8.4"
 itertools = "^0.10.1"
 gen_id_enum_derive = { git = "https://github.com/frsrblch/gen_id_enum_derive" }
 iter_context = { git = "https://github.com/frsrblch/iter_context" }
-fractional_int = { path = "../fractional_int" }
+fractional_int = { git = "https://github.com/frsrblch/fractional_int" }
 
 [dev-dependencies]
 rayon = "^1.5.1"
