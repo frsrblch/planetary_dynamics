@@ -16,7 +16,7 @@ pub fn get_tile_area(radius: Length) -> Area {
     area / tiles as f64
 }
 
-const STEP_SIZE: usize = 8;
+const STEP_SIZE: usize = 4;
 const MAX_SIZE: usize = 256;
 
 #[derive(Debug, Clone)]
@@ -490,5 +490,35 @@ mod test {
         drop(adjacency);
 
         // panic!("{} us", (end - start).as_micros());
+    }
+
+    #[test]
+    fn get_tile_count() {
+        use super::get_tile_count;
+
+        // earth
+        assert_eq!(64, get_tile_count(Length::in_m(6371e3)));
+
+        // moon
+        assert_eq!(16, get_tile_count(Length::in_m(1737.4e3)));
+
+        // mercury
+        assert_eq!(24, get_tile_count(Length::in_m(2439.7e3)));
+
+        // mars
+        assert_eq!(32, get_tile_count(Length::in_m(3389.5e3)));
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn adj_size() {
+        let adj = Adjacency::initialize();
+        let mut size = 0;
+
+        adj.map.iter().for_each(|(_, vec)| {
+            size += vec.len() * std::mem::size_of::<AdjArray>();
+        });
+
+        // panic!("{}", size);
     }
 }

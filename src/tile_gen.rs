@@ -1,5 +1,6 @@
-use crate::adjacency::{AdjArray, Adjacency};
+use crate::adjacency::{get_tile_count, AdjArray, Adjacency};
 use crate::terrain::Terrain;
+use physics_types::Length;
 use rand::distributions::Bernoulli;
 use rand::prelude::{Distribution, Rng, SliceRandom};
 use std::collections::HashSet;
@@ -40,7 +41,17 @@ impl Display for Continent {
     }
 }
 
-pub fn create_terrain<R: Rng>(
+pub fn generate_terrain_from_radius<R: Rng>(
+    radius: Length,
+    water_fraction: f64,
+    adjacency: &Adjacency,
+    rng: &mut R,
+) -> Vec<Terrain> {
+    let tiles = get_tile_count(radius);
+    generate_terrain(tiles, water_fraction, adjacency, rng)
+}
+
+pub fn generate_terrain<R: Rng>(
     nodes: usize,
     water_fraction: f64,
     adjacency: &Adjacency,
@@ -51,7 +62,7 @@ pub fn create_terrain<R: Rng>(
     let adjacency = adjacency.get(nodes);
 
     loop {
-        let continent_count = rng.gen_range(10.min(nodes)..12.min(nodes));
+        let continent_count = rng.gen_range(10.min(nodes)..14.min(nodes));
         let iter_continents = || (0..continent_count).map(Continent);
         let mut neighbours = HashSet::<usize>::new();
 
@@ -209,7 +220,7 @@ mod test {
 
         use std::time::Instant;
         let start = Instant::now();
-        create_terrain(N, 0.5, &adj, rng);
+        generate_terrain(N, 0.5, &adj, rng);
         let end = Instant::now();
 
         println!("done: {} us", (end - start).as_micros());
@@ -223,7 +234,7 @@ mod test {
         let rng = &mut thread_rng();
         let mut adj = Adjacency::default();
         adj.register(N);
-        create_terrain(N, 0.0, &adj, rng);
+        generate_terrain(N, 0.0, &adj, rng);
     }
 
     #[test]
@@ -232,7 +243,7 @@ mod test {
         let rng = &mut thread_rng();
         let mut adj = Adjacency::default();
         adj.register(N);
-        create_terrain(N, 1.0, &adj, rng);
+        generate_terrain(N, 1.0, &adj, rng);
     }
 
     #[test]
@@ -242,7 +253,7 @@ mod test {
         let rng = &mut thread_rng();
         let mut adj = Adjacency::default();
         adj.register(N);
-        create_terrain(N, 1.1, &adj, rng);
+        generate_terrain(N, 1.1, &adj, rng);
     }
 
     #[test]

@@ -8,7 +8,7 @@ use physics_types::{
 use planetary_dynamics::adjacency::{rotations, AdjArray, Adjacency, Node};
 use planetary_dynamics::solar_radiation::{Albedo, InfraredTransparency, RadiativeAbsorption};
 use planetary_dynamics::terrain::Terrain;
-use planetary_dynamics::tile_gen::create_terrain;
+use planetary_dynamics::tile_gen::generate_terrain;
 use plotters::prelude::*;
 use rand::thread_rng;
 
@@ -135,7 +135,7 @@ impl System {
         let mut adj = Adjacency::default();
         adj.register(N);
 
-        let mut terrain = create_terrain(N, 0.7, &adj, &mut thread_rng());
+        let mut terrain = generate_terrain(N, 0.7, &adj, &mut thread_rng());
         terrain[0] = Terrain::new_fraction(1.0, 0.0, 1.0);
         terrain[1].glacier = FractionalU8::new_f64(0.75);
         terrain[2].glacier = FractionalU8::new_f64(0.5);
@@ -193,7 +193,7 @@ impl System {
         let mut adj = Adjacency::default();
         adj.register(N);
 
-        let terrain = create_terrain(N, 0.0, &adj, &mut thread_rng());
+        let terrain = generate_terrain(N, 0.0, &adj, &mut thread_rng());
         let adj = adj.get(N).clone();
 
         let angle = Angle::in_deg(25.19);
