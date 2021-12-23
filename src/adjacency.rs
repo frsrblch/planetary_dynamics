@@ -6,7 +6,7 @@ use fxhash::FxHashMap as HashMap;
 use physics_types::{Area, Length};
 
 pub fn get_tile_count(radius: Length) -> usize {
-    let size = (radius / Length::in_m(6350e3) * 64.0) as usize;
+    let size = (radius / Length::in_m(6350e3) * 96.0) as usize;
     (size / STEP_SIZE * STEP_SIZE).min(MAX_SIZE)
 }
 
@@ -497,16 +497,16 @@ mod test {
         use super::get_tile_count;
 
         // earth
-        assert_eq!(64, get_tile_count(Length::in_m(6371e3)));
+        assert_eq!(96, get_tile_count(Length::in_m(6371e3)));
 
         // moon
-        assert_eq!(16, get_tile_count(Length::in_m(1737.4e3)));
+        assert_eq!(24, get_tile_count(Length::in_m(1737.4e3)));
 
         // mercury
-        assert_eq!(24, get_tile_count(Length::in_m(2439.7e3)));
+        assert_eq!(36, get_tile_count(Length::in_m(2439.7e3)));
 
         // mars
-        assert_eq!(32, get_tile_count(Length::in_m(3389.5e3)));
+        assert_eq!(48, get_tile_count(Length::in_m(3389.5e3)));
     }
 
     #[test]
