@@ -1,7 +1,7 @@
 use fractional_int::FractionalU8;
 use iter_context::ContextualIterator;
-use physics_types::{Duration, MolecularMass};
-use std::ops::Not;
+use physics_types::{Duration, FluxDensity, MolecularMass};
+use std::ops::{Mul, Not};
 
 // TODO incorporate chemicals that increase albedo
 
@@ -79,7 +79,7 @@ impl Gas {
         match self {
             Gas::CarbonDioxide => 1.0,
             Gas::Methane => 84.0,
-            Gas::Water => todo!(),
+            Gas::Water => 0.39,
             _ => 0.0,
         }
     }
@@ -138,9 +138,8 @@ impl Emissivity {
 }
 
 /// radiative absorption = 1 - albedo
-/// https://en.wikipedia.org/wiki/Albedo
 #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
-pub struct RadiativeAbsorption(pub(crate) f64);
+pub struct RadiativeAbsorption(pub f64);
 
 impl RadiativeAbsorption {
     pub const SNOW: Self = Albedo::SNOW.not();
@@ -195,13 +194,22 @@ impl const std::ops::Not for RadiativeAbsorption {
     }
 }
 
+impl Mul<RadiativeAbsorption> for FluxDensity {
+    type Output = FluxDensity;
+
+    fn mul(self, rhs: RadiativeAbsorption) -> Self::Output {
+        self * rhs.0
+    }
+}
+
+/// https://en.wikipedia.org/wiki/Albedo
 #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
-pub struct Albedo(pub(crate) f64);
+pub struct Albedo(pub f64);
 
 impl Albedo {
     pub const SNOW: Self = Self(0.8);
     pub const CLOUD: Self = Self(0.5);
-    pub const ICE: Self = Self(0.35);
+    pub const ICE: Self = Self(0.75);
     pub const FARMLAND: Self = Self(0.2);
     pub const CONCRETE: Self = Self(0.4);
     pub const FOREST: Self = Self(0.1);
@@ -224,12 +232,20 @@ impl const std::ops::Not for Albedo {
 
 /// infrared transparency = 1 - fraction reflected back to surface
 #[derive(Debug, Default, Copy, Clone, PartialOrd, PartialEq)]
-pub struct InfraredTransparency(f64);
+pub struct InfraredTransparency(pub f64);
 
 impl InfraredTransparency {
     pub const fn new(value: f64) -> Self {
         debug_assert!(value > 0.0 && value <= 1.0);
         Self(value)
+    }
+}
+
+impl Mul<InfraredTransparency> for FluxDensity {
+    type Output = FluxDensity;
+
+    fn mul(self, rhs: InfraredTransparency) -> Self::Output {
+        self * rhs.0
     }
 }
 
@@ -289,6 +305,17 @@ mod test {
     #[should_panic]
     fn infrared_transparency_nan() {
         InfraredTransparency::new(f64::NAN);
+    }
+
+    #[test]
+    fn flux_density_mul_infrared_transparency() {
+        let fd = FluxDensity::in_w_per_m2(1.0);
+        let it = InfraredTransparency::new(0.25);
+
+        let expected = FluxDensity::in_w_per_m2(0.25);
+        let actual = fd * it;
+
+        assert_eq!(expected, actual);
     }
 
     #[test]

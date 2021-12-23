@@ -234,7 +234,7 @@ impl Node {
     }
 }
 
-fn rotations(nodes: u16) -> f64 {
+pub fn rotations(nodes: u16) -> f64 {
     (nodes as f64 - 0.25).sqrt() * 2.0
 }
 

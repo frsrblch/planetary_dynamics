@@ -29,7 +29,7 @@ impl Terrain {
     /// # Examples
     ///
     /// ```
-    /// use planetary_dynamics::tiles::Terrain;
+    /// use planetary_dynamics::terrain::Terrain;
     /// let pacific = Terrain::new_fraction(0.97, 0.6, 0.0);
     /// let arizona = Terrain::new_fraction(0.0, 0.25, 0.0);
     /// let arctic = Terrain::new_fraction(0.8, 0.5, 0.8);

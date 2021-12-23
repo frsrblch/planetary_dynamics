@@ -1,12 +1,11 @@
 use crate::adjacency::{AdjArray, Adjacency};
-use crate::tiles::Terrain;
+use crate::terrain::Terrain;
 use rand::distributions::Bernoulli;
 use rand::prelude::Distribution;
 use rand::seq::SliceRandom;
 use rand::{thread_rng, Rng};
 use std::collections::HashSet;
 use std::fmt::{Display, Formatter};
-use std::iter::Enumerate;
 use std::ops::AddAssign;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -43,36 +42,7 @@ impl Display for Continent {
     }
 }
 
-struct Continents<I> {
-    enumerate: Enumerate<I>,
-}
-
-impl<I> Iterator for Continents<I>
-where
-    I: Iterator,
-{
-    type Item = (Continent, I::Item);
-
-    fn next(&mut self) -> Option<Self::Item> {
-        self.enumerate
-            .next()
-            .map(|(i, plate)| (Continent(i), plate))
-    }
-}
-
-trait IteratorExt: Sized {
-    fn continents(self) -> Continents<Self>;
-}
-
-impl<'a, I: Iterator> IteratorExt for I {
-    fn continents(self) -> Continents<Self> {
-        Continents {
-            enumerate: self.enumerate(),
-        }
-    }
-}
-
-pub fn create_tiles(nodes: usize, water_fraction: f64, adjacency: &Adjacency) -> Vec<Terrain> {
+pub fn create_terrain(nodes: usize, water_fraction: f64, adjacency: &Adjacency) -> Vec<Terrain> {
     let plate_type = WaterFraction::new(water_fraction);
 
     let adjacency = adjacency.get(nodes);
@@ -114,15 +84,15 @@ pub fn create_tiles(nodes: usize, water_fraction: f64, adjacency: &Adjacency) ->
             }
         }
 
-        for c in iter_continents() {
-            tiles.iter().enumerate().for_each(|(i, t)| {
-                let t = t.unwrap();
-                if t == c {
-                    println!("{}: {}", i, c);
-                }
-            });
-            println!();
-        }
+        // for c in iter_continents() {
+        //     tiles.iter().enumerate().for_each(|(i, t)| {
+        //         let t = t.unwrap();
+        //         if t == c {
+        //             println!("{}: {}", i, c);
+        //         }
+        //     });
+        //     println!();
+        // }
 
         // loop many times to make these continents
         for _ in 0..20 {
@@ -138,10 +108,10 @@ pub fn create_tiles(nodes: usize, water_fraction: f64, adjacency: &Adjacency) ->
 
             let result_fraction = water_tiles as f64 / nodes as f64;
             if (result_fraction - water_fraction).abs() < 0.03 {
-                continent_types
-                    .iter()
-                    .continents()
-                    .for_each(|(c, t)| println!("{}: {:?}", c, *t));
+                // continent_types
+                //     .iter()
+                //     .continents()
+                //     .for_each(|(c, t)| println!("{}: {:?}", c, *t));
 
                 return tiles
                     .iter()
@@ -251,7 +221,7 @@ mod test {
 
         use std::time::Instant;
         let start = Instant::now();
-        create_tiles(N, 0.5, &mut adj);
+        create_terrain(N, 0.5, &mut adj);
         let end = Instant::now();
 
         println!("done: {} us", (end - start).as_micros());
@@ -264,7 +234,7 @@ mod test {
         const N: usize = 32;
         let mut adj = Adjacency::default();
         adj.register(N);
-        create_tiles(N, 0.0, &mut adj);
+        create_terrain(N, 0.0, &mut adj);
     }
 
     #[test]
@@ -272,7 +242,7 @@ mod test {
         const N: usize = 32;
         let mut adj = Adjacency::default();
         adj.register(N);
-        create_tiles(N, 1.0, &mut adj);
+        create_terrain(N, 1.0, &mut adj);
     }
 
     #[test]
@@ -281,7 +251,7 @@ mod test {
         const N: usize = 32;
         let mut adj = Adjacency::default();
         adj.register(N);
-        create_tiles(N, 1.1, &mut adj);
+        create_terrain(N, 1.1, &mut adj);
     }
 
     #[test]

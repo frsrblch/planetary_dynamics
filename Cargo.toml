@@ -19,9 +19,13 @@ fractional_int = { git = "https://github.com/frsrblch/fractional_int" }
 [dev-dependencies]
 rayon = "^1.5.1"
 criterion = "*"
+plotters = "*"
 
 [[example]]
 name = "adjacency_check"
+
+[[example]]
+name = "orbit_rotation_radiation"
 
 [[bench]]
 name = "terrain_absorption"

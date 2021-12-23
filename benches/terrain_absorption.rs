@@ -1,7 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion};
 use fractional_int::FractionalU8;
 use planetary_dynamics::solar_radiation::RadiativeAbsorption;
-use planetary_dynamics::tiles::Terrain;
+use planetary_dynamics::terrain::Terrain;
 use std::iter::FromIterator;
 
 criterion_main! {
