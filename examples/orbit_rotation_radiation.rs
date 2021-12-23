@@ -10,6 +10,7 @@ use planetary_dynamics::solar_radiation::{Albedo, InfraredTransparency, Radiativ
 use planetary_dynamics::terrain::Terrain;
 use planetary_dynamics::tile_gen::create_terrain;
 use plotters::prelude::*;
+use rand::thread_rng;
 
 // TODO decouple system.dt and heat transfer
 // TODO heat capacity based on terrain (water's is higher and it has mixing)
@@ -129,11 +130,12 @@ fn sun() -> Power {
 }
 
 impl System {
+    #[allow(dead_code)]
     pub fn earth() -> Self {
         let mut adj = Adjacency::default();
         adj.register(N);
 
-        let mut terrain = create_terrain(N, 0.7, &adj);
+        let mut terrain = create_terrain(N, 0.7, &adj, &mut thread_rng());
         terrain[0] = Terrain::new_fraction(1.0, 0.0, 1.0);
         terrain[1].glacier = FractionalU8::new_f64(0.75);
         terrain[2].glacier = FractionalU8::new_f64(0.5);
@@ -165,9 +167,9 @@ impl System {
                     line(origin(), point(sin, 0.0, cos))
                 },
             },
-            surfaces: (0..N as u16)
+            surfaces: (0..N)
                 .into_iter()
-                .map(|n| Node::new(n, N as u16).position(rotations(N as u16)))
+                .map(|n| Node::new(n, N).position(rotations(N)))
                 .map(|p| line(origin(), point(p.x, p.y, p.z)).r_comp())
                 .map(|p| axial_tilt.sandwich(p))
                 .collect::<Vec<_>>(),
@@ -186,11 +188,12 @@ impl System {
         }
     }
 
+    #[allow(dead_code)]
     pub fn mars() -> Self {
         let mut adj = Adjacency::default();
         adj.register(N);
 
-        let terrain = create_terrain(N, 0.0, &adj);
+        let terrain = create_terrain(N, 0.0, &adj, &mut thread_rng());
         let adj = adj.get(N).clone();
 
         let angle = Angle::in_deg(25.19);
@@ -213,9 +216,9 @@ impl System {
                     line(origin(), point(sin, 0.0, cos))
                 },
             },
-            surfaces: (0..N as u16)
+            surfaces: (0..N)
                 .into_iter()
-                .map(|n| Node::new(n, N as u16).position(rotations(N as u16)))
+                .map(|n| Node::new(n, N).position(rotations(N)))
                 .map(|p| line(origin(), point(p.x, p.y, p.z)).r_comp())
                 .map(|s| axial_tilt.sandwich(s))
                 .collect::<Vec<_>>(),

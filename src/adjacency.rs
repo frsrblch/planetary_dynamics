@@ -3,9 +3,100 @@
 pub use crate::adjacency::adj_array::AdjArray;
 use crate::adjacency::units::*;
 use fxhash::FxHashMap as HashMap;
-use std::convert::TryFrom;
+use physics_types::{Area, Length};
+
+pub fn get_tile_count(radius: Length) -> usize {
+    let size = (radius / Length::in_m(6350e3) * 64.0) as usize;
+    (size / STEP_SIZE * STEP_SIZE).min(MAX_SIZE)
+}
+
+pub fn get_tile_area(radius: Length) -> Area {
+    let tiles = get_tile_count(radius);
+    let area = Area::of_sphere(radius);
+    area / tiles as f64
+}
+
+const STEP_SIZE: usize = 8;
+const MAX_SIZE: usize = 256;
+
+#[derive(Debug, Clone)]
+pub struct Adjacency {
+    map: HashMap<usize, Vec<AdjArray>>,
+}
+
+impl Default for Adjacency {
+    fn default() -> Self {
+        let map = HashMap::default();
+        Adjacency { map }
+    }
+}
+
+impl Adjacency {
+    pub fn initialize() -> Self {
+        let mut adj = Adjacency::default();
+
+        for size in (STEP_SIZE..=MAX_SIZE).step_by(STEP_SIZE) {
+            adj.register(size);
+        }
+
+        adj
+    }
+
+    pub fn clear(&mut self) {
+        self.map.clear();
+    }
+
+    pub fn register(&mut self, nodes: usize) {
+        self.map
+            .entry(nodes)
+            .or_insert_with(|| Self::create_min_edges(nodes));
+    }
+
+    #[track_caller]
+    pub fn get(&self, nodes: usize) -> &Vec<AdjArray> {
+        self.map
+            .get(&nodes)
+            .unwrap_or_else(|| panic!("unregisted size: {}", nodes))
+    }
+
+    fn create_min_edges(nodes: usize) -> Vec<AdjArray> {
+        let rotations = rotations(nodes);
+
+        let points = (0..nodes)
+            .into_iter()
+            .map(move |index| Node { index, nodes }.position(rotations))
+            .collect::<Vec<_>>();
+
+        let mut edges = points
+            .iter()
+            .enumerate()
+            .flat_map(|(i, p)| {
+                points
+                    .iter()
+                    .enumerate()
+                    .skip(i + 1)
+                    .map(move |(j, q)| ((*p - *q).magnitude_squared(), (i, j)))
+            })
+            .collect::<Vec<_>>();
+
+        edges.sort();
+
+        // Taking 3 edges per node isn't enough to complete the graph
+        let count = (nodes as f64 * 3.05) as usize;
+        let iter = edges.into_iter().take(count);
+        let mut edges = vec![AdjArray::default(); nodes as usize];
+
+        for (_, (i, j)) in iter {
+            edges[i].push(j);
+            edges[j].push(i);
+        }
+
+        edges
+    }
+}
 
 mod adj_array {
+    use std::convert::TryFrom;
     use std::fmt::{Display, Formatter};
     use std::iter::FromIterator;
 
@@ -20,8 +111,8 @@ mod adj_array {
             let mut iter = iter.into_iter();
 
             array[1..].iter_mut().zip(&mut iter).for_each(|(v, item)| {
-                assert!(item <= u16::MAX as usize);
-                *v = item as u16;
+                let item = u16::try_from(item).unwrap();
+                *v = item;
                 len += 1;
             });
 
@@ -53,7 +144,7 @@ mod adj_array {
     }
 
     impl AdjArray {
-        const LEN: usize = 9;
+        const LEN: usize = 8;
         const MAX: usize = Self::LEN - 1;
 
         pub fn len(&self) -> usize {
@@ -80,9 +171,8 @@ mod adj_array {
 
         pub fn push(&mut self, value: usize) {
             assert!(self.len() < Self::MAX);
-            assert!(value <= u16::MAX as usize);
-
-            self.0[self.len() + 1] = value as u16;
+            let value = u16::try_from(value).unwrap();
+            self.0[self.len() + 1] = value;
             self.0[0] += 1;
         }
 
@@ -143,76 +233,14 @@ mod adj_array {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct Adjacency {
-    map: HashMap<u16, Vec<AdjArray>>,
-}
-
-impl Adjacency {
-    pub fn clear(&mut self) {
-        self.map.clear();
-    }
-
-    pub fn register(&mut self, nodes: usize) {
-        let nodes = u16::try_from(nodes).unwrap();
-
-        self.map
-            .entry(nodes)
-            .or_insert_with(|| Self::create_min_edges(nodes));
-    }
-
-    #[track_caller]
-    pub fn get(&self, nodes: usize) -> &Vec<AdjArray> {
-        let nodes = u16::try_from(nodes).unwrap();
-        self.map
-            .get(&nodes)
-            .unwrap_or_else(|| panic!("unregisted size: {}", nodes))
-    }
-
-    fn create_min_edges(nodes: u16) -> Vec<AdjArray> {
-        let rotations = rotations(nodes);
-
-        let points = (0..nodes)
-            .into_iter()
-            .map(move |index| Node { index, nodes }.position(rotations))
-            .collect::<Vec<_>>();
-
-        let mut edges = points
-            .iter()
-            .enumerate()
-            .flat_map(|(i, p)| {
-                points
-                    .iter()
-                    .enumerate()
-                    .skip(i + 1)
-                    .map(move |(j, q)| ((*p - *q).magnitude_squared(), (i, j)))
-            })
-            .collect::<Vec<_>>();
-
-        edges.sort();
-
-        // Taking 3 edges per node wasn't enough to complete the graph
-        let count = (nodes as f64 * 3.05) as usize;
-        let iter = edges.into_iter().take(count);
-        let mut edges = vec![AdjArray::default(); nodes as usize];
-
-        for (_, (i, j)) in iter {
-            edges[i].push(j);
-            edges[j].push(i);
-        }
-
-        edges
-    }
-}
-
 #[derive(Debug, Copy, Clone, Ord, PartialOrd, Eq, PartialEq, Hash)]
 pub struct Node {
-    index: u16,
-    nodes: u16,
+    index: usize,
+    nodes: usize,
 }
 
 impl Node {
-    pub fn new(index: u16, nodes: u16) -> Self {
+    pub fn new(index: usize, nodes: usize) -> Self {
         assert!(index < nodes);
         Self { index, nodes }
     }
@@ -234,7 +262,7 @@ impl Node {
     }
 }
 
-pub fn rotations(nodes: u16) -> f64 {
+pub fn rotations(nodes: usize) -> f64 {
     (nodes as f64 - 0.25).sqrt() * 2.0
 }
 
@@ -248,7 +276,7 @@ pub mod units {
     pub struct ClosedUnitInterval(f64);
 
     impl ClosedUnitInterval {
-        pub fn fraction(n: u16, N: u16) -> Self {
+        pub fn fraction(n: usize, N: usize) -> Self {
             assert!((0..N).contains(&n));
             ClosedUnitInterval((n as f64 + 0.5) / N as f64)
         }
@@ -451,5 +479,16 @@ mod test {
         let inv_phi = ClosedUnitInterval::inverse(phi);
 
         assert_eq!(fraction, inv_phi);
+    }
+
+    #[test]
+    #[cfg(not(debug_assertions))]
+    fn adjacency_initialize() {
+        let start = std::time::Instant::now();
+        let adjacency = Adjacency::initialize();
+        let end = std::time::Instant::now();
+        drop(adjacency);
+
+        // panic!("{} us", (end - start).as_micros());
     }
 }

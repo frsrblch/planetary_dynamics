@@ -152,7 +152,6 @@ impl RadiativeAbsorption {
 
     pub const fn new(value: f64) -> Self {
         debug_assert!(value > 0.0 && value <= 1.0);
-
         Self(value)
     }
 
@@ -273,36 +272,42 @@ mod test {
 
     #[test]
     #[should_panic]
+    #[cfg(debug_assertions)]
     fn relative_absorption_zero() {
         RadiativeAbsorption::new(0.0);
     }
 
     #[test]
     #[should_panic]
+    #[cfg(debug_assertions)]
     fn relative_absorption_gt_one() {
         RadiativeAbsorption::new(1.01);
     }
 
     #[test]
     #[should_panic]
+    #[cfg(debug_assertions)]
     fn relative_absorption_nan() {
         RadiativeAbsorption::new(f64::NAN);
     }
 
     #[test]
     #[should_panic]
+    #[cfg(debug_assertions)]
     fn infrared_transparency_zero() {
         InfraredTransparency::new(0.0);
     }
 
     #[test]
     #[should_panic]
+    #[cfg(debug_assertions)]
     fn infrared_transparency_gt_one() {
         InfraredTransparency::new(1.01);
     }
 
     #[test]
     #[should_panic]
+    #[cfg(debug_assertions)]
     fn infrared_transparency_nan() {
         InfraredTransparency::new(f64::NAN);
     }
