@@ -6,6 +6,22 @@ use rand::prelude::{Distribution, Rng, SliceRandom};
 use std::collections::HashSet;
 use std::ops::AddAssign;
 
+#[derive(Debug, Default, Copy, Clone)]
+pub struct TileGen {
+    pub water_fraction: f64,
+}
+
+impl TileGen {
+    pub fn generate<R: Rng>(
+        &self,
+        radius: Length,
+        adjacency: &Adjacency,
+        rng: &mut R,
+    ) -> Vec<Terrain> {
+        generate_terrain_from_radius(radius, self.water_fraction, adjacency, rng)
+    }
+}
+
 #[derive(Debug, Copy, Clone, PartialEq)]
 enum ContinentType {
     Land,
