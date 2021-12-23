@@ -101,24 +101,24 @@ mod adj_array {
     use std::iter::FromIterator;
 
     #[derive(Debug, Default, Copy, Clone, Eq, PartialEq)]
-    pub struct AdjArray([u16; Self::LEN]);
+    pub struct AdjArray([u8; Self::LEN]);
 
     impl FromIterator<usize> for AdjArray {
         fn from_iter<I: IntoIterator<Item = usize>>(iter: I) -> Self {
             // this isn't optimal, but it's only done at startup
-            let mut array = <[u16; Self::LEN]>::default();
+            let mut array = <[u8; Self::LEN]>::default();
             let mut len = 0usize;
             let mut iter = iter.into_iter();
 
             array[1..].iter_mut().zip(&mut iter).for_each(|(v, item)| {
-                let item = u16::try_from(item).unwrap();
+                let item = u8::try_from(item).unwrap();
                 *v = item;
                 len += 1;
             });
 
             assert_eq!(None, iter.next());
 
-            array[0] = len as u16;
+            array[0] = len as u8;
 
             Self(array)
         }
@@ -171,7 +171,7 @@ mod adj_array {
 
         pub fn push(&mut self, value: usize) {
             assert!(self.len() < Self::MAX);
-            let value = u16::try_from(value).unwrap();
+            let value = u8::try_from(value).unwrap();
             self.0[self.len() + 1] = value;
             self.0[0] += 1;
         }
@@ -191,7 +191,7 @@ mod adj_array {
         }
     }
 
-    pub struct Iter<'a>(std::slice::Iter<'a, u16>);
+    pub struct Iter<'a>(std::slice::Iter<'a, u8>);
 
     impl<'a> Iterator for Iter<'a> {
         type Item = usize;

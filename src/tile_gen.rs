@@ -4,7 +4,6 @@ use physics_types::Length;
 use rand::distributions::Bernoulli;
 use rand::prelude::{Distribution, Rng, SliceRandom};
 use std::collections::HashSet;
-use std::fmt::{Display, Formatter};
 use std::ops::AddAssign;
 
 #[derive(Debug, Copy, Clone, PartialEq)]
@@ -29,15 +28,6 @@ impl Distribution<ContinentType> for WaterFraction {
         } else {
             ContinentType::Land
         }
-    }
-}
-
-#[derive(Debug, Copy, Clone, Eq, PartialEq, Hash)]
-struct Continent(usize);
-
-impl Display for Continent {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
-        write!(f, "C{}", self.0)
     }
 }
 
@@ -154,6 +144,9 @@ pub fn generate_terrain<R: Rng>(
         }
     }
 }
+
+#[derive(Debug, Copy, Clone)]
+struct Continent(usize);
 
 fn random_none<R: Rng, T>(rng: &mut R, slice: &[Option<T>]) -> usize {
     debug_assert!(slice.iter().any(|c| c.is_none()));
